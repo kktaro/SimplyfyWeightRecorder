@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Simplify Weight Recorder</string>
+    <string name="app_name">体重記録</string>
     <string name="weight_screen_title">体重を記録</string>
     <string name="weight_input_label">体重 (kg)</string>
     <string name="submit_button_label">登録</string>
