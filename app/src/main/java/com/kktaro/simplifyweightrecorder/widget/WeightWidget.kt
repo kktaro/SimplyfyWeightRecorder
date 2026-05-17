@@ -30,6 +30,8 @@ import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.width
+import androidx.glance.preview.ExperimentalGlancePreviewApi
+import androidx.glance.preview.Preview
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
@@ -159,3 +161,41 @@ private fun CandidateCell(candidate: WeightCandidate, modifier: GlanceModifier) 
 }
 
 private const val COLUMNS = 2
+
+@OptIn(ExperimentalGlancePreviewApi::class)
+@Preview(widthDp = 250, heightDp = 220)
+@Composable
+private fun WeightWidgetContentIdlePreview() {
+    GlanceTheme {
+        WeightWidgetContent(
+            candidates = previewCandidates(),
+            uiState = WeightWidgetUiState.Idle
+        )
+    }
+}
+
+@OptIn(ExperimentalGlancePreviewApi::class)
+@Preview(widthDp = 250, heightDp = 260)
+@Composable
+private fun WeightWidgetContentErrorPreview() {
+    GlanceTheme {
+        WeightWidgetContent(
+            candidates = previewCandidates(),
+            uiState = WeightWidgetUiState.Error(WidgetErrorReason.PermissionDenied)
+        )
+    }
+}
+
+private fun previewCandidates(): List<WeightCandidate> = listOf(
+    WeightCandidate(kg = 59.5, isBaseline = false),
+    WeightCandidate(kg = 59.6, isBaseline = false),
+    WeightCandidate(kg = 59.7, isBaseline = false),
+    WeightCandidate(kg = 59.8, isBaseline = false),
+    WeightCandidate(kg = 59.9, isBaseline = false),
+    WeightCandidate(kg = 60.0, isBaseline = true),
+    WeightCandidate(kg = 60.1, isBaseline = false),
+    WeightCandidate(kg = 60.2, isBaseline = false),
+    WeightCandidate(kg = 60.3, isBaseline = false),
+    WeightCandidate(kg = 60.4, isBaseline = false),
+    WeightCandidate(kg = 60.5, isBaseline = false)
+)

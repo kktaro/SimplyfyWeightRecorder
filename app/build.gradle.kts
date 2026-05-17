@@ -56,6 +56,8 @@ dependencies {
     implementation(libs.androidx.health.connect.client)
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.androidx.glance.material3)
+    implementation(libs.androidx.glance.preview)
+    debugImplementation(libs.androidx.glance.appwidget.preview)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.hilt.android)
     implementation(libs.kotlinx.coroutines.android)
