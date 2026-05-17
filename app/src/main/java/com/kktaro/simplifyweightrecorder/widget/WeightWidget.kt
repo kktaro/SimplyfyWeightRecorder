@@ -4,15 +4,21 @@ import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.datastore.preferences.core.Preferences
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.LocalContext
+import androidx.glance.action.ActionParameters
+import androidx.glance.action.actionParametersOf
+import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.SizeMode
+import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
+import androidx.glance.currentState
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
@@ -23,6 +29,7 @@ import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.width
+import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
@@ -34,6 +41,8 @@ class WeightWidget : GlanceAppWidget() {
 
     override val sizeMode = SizeMode.Single
 
+    override val stateDefinition = PreferencesGlanceStateDefinition
+
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val ep = widgetEntryPoint(context)
         val baseKg = ep.lastWeightRepository().getLastWeight()
@@ -41,14 +50,20 @@ class WeightWidget : GlanceAppWidget() {
 
         provideContent {
             GlanceTheme {
-                WeightWidgetContent(candidates = candidates)
+                WeightWidgetContent(
+                    candidates = candidates,
+                    uiState = currentState<Preferences>().toWidgetUiState()
+                )
             }
         }
     }
 }
 
 @Composable
-private fun WeightWidgetContent(candidates: List<WeightCandidate>) {
+private fun WeightWidgetContent(
+    candidates: List<WeightCandidate>,
+    uiState: WeightWidgetUiState
+) {
     val context = LocalContext.current
     Column(
         modifier = GlanceModifier
@@ -65,7 +80,7 @@ private fun WeightWidgetContent(candidates: List<WeightCandidate>) {
             )
         )
         Text(
-            text = context.getString(R.string.widget_status_idle),
+            text = uiState.statusText(context),
             style = TextStyle(
                 fontSize = 12.sp,
                 color = GlanceTheme.colors.onSurfaceVariant
@@ -107,6 +122,11 @@ private fun CandidateCell(candidate: WeightCandidate, modifier: GlanceModifier) 
             .background(
                 if (baseline) GlanceTheme.colors.primaryContainer
                 else GlanceTheme.colors.surfaceVariant
+            )
+            .clickable(
+                actionRunCallback<WeightSelectionActionCallback>(
+                    actionParametersOf(WeightSelectionActionCallback.kgParam to candidate.kg)
+                )
             )
             .padding(vertical = 10.dp, horizontal = 12.dp)
     ) {
