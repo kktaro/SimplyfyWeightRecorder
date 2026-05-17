@@ -6,6 +6,8 @@ import com.kktaro.simplifyweightrecorder.data.repository.HealthConnectWeightRepo
 import com.kktaro.simplifyweightrecorder.data.repository.WeightRepository
 import com.kktaro.simplifyweightrecorder.domain.time.ClockProvider
 import com.kktaro.simplifyweightrecorder.domain.time.SystemClockProvider
+import com.kktaro.simplifyweightrecorder.widget.WeightWidgetUpdater
+import com.kktaro.simplifyweightrecorder.widget.WidgetUpdater
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -28,4 +30,8 @@ abstract class AppModule {
     abstract fun bindLastWeightRepository(
         impl: DataStoreLastWeightRepository
     ): LastWeightRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindWidgetUpdater(impl: WeightWidgetUpdater): WidgetUpdater
 }
