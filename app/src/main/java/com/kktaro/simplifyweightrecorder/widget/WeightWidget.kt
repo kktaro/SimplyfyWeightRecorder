@@ -1,0 +1,125 @@
+package com.kktaro.simplifyweightrecorder.widget
+
+import android.content.Context
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.glance.GlanceId
+import androidx.glance.GlanceModifier
+import androidx.glance.GlanceTheme
+import androidx.glance.LocalContext
+import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.SizeMode
+import androidx.glance.appwidget.cornerRadius
+import androidx.glance.appwidget.provideContent
+import androidx.glance.background
+import androidx.glance.layout.Alignment
+import androidx.glance.layout.Box
+import androidx.glance.layout.Column
+import androidx.glance.layout.Row
+import androidx.glance.layout.Spacer
+import androidx.glance.layout.fillMaxSize
+import androidx.glance.layout.fillMaxWidth
+import androidx.glance.layout.height
+import androidx.glance.layout.padding
+import androidx.glance.layout.width
+import androidx.glance.text.FontWeight
+import androidx.glance.text.Text
+import androidx.glance.text.TextStyle
+import com.kktaro.simplifyweightrecorder.R
+import com.kktaro.simplifyweightrecorder.domain.model.WeightCandidate
+import java.util.Locale
+
+class WeightWidget : GlanceAppWidget() {
+
+    override val sizeMode = SizeMode.Single
+
+    override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val ep = widgetEntryPoint(context)
+        val baseKg = ep.lastWeightRepository().getLastWeight()
+        val candidates = ep.computeWeightCandidatesUseCase().invoke(baseKg)
+
+        provideContent {
+            GlanceTheme {
+                WeightWidgetContent(candidates = candidates)
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeightWidgetContent(candidates: List<WeightCandidate>) {
+    val context = LocalContext.current
+    Column(
+        modifier = GlanceModifier
+            .fillMaxSize()
+            .background(GlanceTheme.colors.widgetBackground)
+            .padding(12.dp)
+    ) {
+        Text(
+            text = context.getString(R.string.widget_title),
+            style = TextStyle(
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                color = GlanceTheme.colors.onSurface
+            )
+        )
+        Text(
+            text = context.getString(R.string.widget_status_idle),
+            style = TextStyle(
+                fontSize = 12.sp,
+                color = GlanceTheme.colors.onSurfaceVariant
+            )
+        )
+        Spacer(modifier = GlanceModifier.height(8.dp))
+        CandidatesGrid(candidates)
+    }
+}
+
+@Composable
+private fun CandidatesGrid(candidates: List<WeightCandidate>) {
+    Column(modifier = GlanceModifier.fillMaxWidth()) {
+        candidates.chunked(COLUMNS).forEachIndexed { rowIndex, row ->
+            if (rowIndex > 0) Spacer(modifier = GlanceModifier.height(4.dp))
+            Row(modifier = GlanceModifier.fillMaxWidth()) {
+                row.forEachIndexed { columnIndex, candidate ->
+                    if (columnIndex > 0) Spacer(modifier = GlanceModifier.width(4.dp))
+                    CandidateCell(
+                        candidate = candidate,
+                        modifier = GlanceModifier.defaultWeight()
+                    )
+                }
+                if (row.size < COLUMNS) {
+                    Spacer(modifier = GlanceModifier.defaultWeight())
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CandidateCell(candidate: WeightCandidate, modifier: GlanceModifier) {
+    val baseline = candidate.isBaseline
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .cornerRadius(12.dp)
+            .background(
+                if (baseline) GlanceTheme.colors.primaryContainer
+                else GlanceTheme.colors.surfaceVariant
+            )
+            .padding(vertical = 10.dp, horizontal = 12.dp)
+    ) {
+        Text(
+            text = String.format(Locale.US, "%.1f", candidate.kg),
+            style = TextStyle(
+                fontWeight = if (baseline) FontWeight.Bold else FontWeight.Normal,
+                fontSize = 16.sp,
+                color = if (baseline) GlanceTheme.colors.onPrimaryContainer
+                else GlanceTheme.colors.onSurfaceVariant
+            )
+        )
+    }
+}
+
+private const val COLUMNS = 2

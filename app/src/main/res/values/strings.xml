@@ -13,4 +13,15 @@
     <string name="health_connect_not_installed">Health Connectがインストールされていません。Play Storeからインストールしてください。</string>
     <string name="health_connect_update_required">Health Connectの更新が必要です。Play Storeから更新してください。</string>
     <string name="health_connect_open_store">Play Storeを開く</string>
+    <string name="widget_label">体重ウィジェット</string>
+    <string name="widget_title">体重を記録</string>
+    <string name="widget_description">前回値±0.5kg のボタンから即座に記録できます</string>
+    <string name="widget_status_idle">タップで記録</string>
+    <string name="widget_status_saving">%1$.1f kg を記録中…</string>
+    <string name="widget_status_success">%1$.1f kg を記録しました</string>
+    <string name="widget_error_permission_denied">書き込み権限が必要です</string>
+    <string name="widget_error_open_app">アプリを開いて許可</string>
+    <string name="widget_error_health_connect_unavailable">Health Connect が利用できません</string>
+    <string name="widget_error_out_of_range">値が範囲外です</string>
+    <string name="widget_error_unknown">記録に失敗しました</string>
 </resources>
