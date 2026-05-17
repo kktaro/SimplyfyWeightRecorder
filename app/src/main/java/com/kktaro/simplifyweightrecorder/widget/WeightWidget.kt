@@ -11,6 +11,7 @@ import androidx.glance.GlanceTheme
 import androidx.glance.LocalContext
 import androidx.glance.action.ActionParameters
 import androidx.glance.action.actionParametersOf
+import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.SizeMode
@@ -32,7 +33,9 @@ import androidx.glance.layout.width
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
+import androidx.glance.text.TextDecoration
 import androidx.glance.text.TextStyle
+import com.kktaro.simplifyweightrecorder.MainActivity
 import com.kktaro.simplifyweightrecorder.R
 import com.kktaro.simplifyweightrecorder.domain.model.WeightCandidate
 import java.util.Locale
@@ -86,6 +89,19 @@ private fun WeightWidgetContent(
                 color = GlanceTheme.colors.onSurfaceVariant
             )
         )
+        if (uiState is WeightWidgetUiState.Error) {
+            Text(
+                text = context.getString(R.string.widget_error_open_app),
+                modifier = GlanceModifier
+                    .padding(vertical = 6.dp)
+                    .clickable(actionStartActivity<MainActivity>()),
+                style = TextStyle(
+                    fontSize = 12.sp,
+                    color = GlanceTheme.colors.primary,
+                    textDecoration = TextDecoration.Underline
+                )
+            )
+        }
         Spacer(modifier = GlanceModifier.height(8.dp))
         CandidatesGrid(candidates)
     }

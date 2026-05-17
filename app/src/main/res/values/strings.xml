@@ -20,7 +20,7 @@
     <string name="widget_status_saving">%1$.1f kg を記録中…</string>
     <string name="widget_status_success">%1$.1f kg を記録しました</string>
     <string name="widget_error_permission_denied">書き込み権限が必要です</string>
-    <string name="widget_error_open_app">アプリを開いて許可</string>
+    <string name="widget_error_open_app">アプリを開く</string>
     <string name="widget_error_health_connect_unavailable">Health Connect が利用できません</string>
     <string name="widget_error_unknown">記録に失敗しました</string>
 </resources>
