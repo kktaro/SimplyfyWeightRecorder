@@ -5,6 +5,7 @@ import androidx.glance.GlanceId
 import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.state.updateAppWidgetState
+import androidx.glance.appwidget.updateAll
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import com.kktaro.simplifyweightrecorder.data.healthconnect.HealthConnectAvailability
 import kotlinx.coroutines.delay
@@ -61,5 +62,5 @@ private suspend fun updateState(
     updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { prefs ->
         prefs.toMutablePreferences().apply { writeWidgetUiState(state) }
     }
-    WeightWidget().update(context, glanceId)
+    WeightWidget().updateAll(context)
 }
