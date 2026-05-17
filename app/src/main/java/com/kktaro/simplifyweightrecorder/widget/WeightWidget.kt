@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.Preferences
+import androidx.glance.Button
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -92,15 +93,13 @@ private fun WeightWidgetContent(
             )
         )
         if (uiState is WeightWidgetUiState.Error) {
-            Text(
+            Spacer(modifier = GlanceModifier.height(8.dp))
+            Button(
                 text = context.getString(R.string.widget_error_open_app),
-                modifier = GlanceModifier
-                    .padding(vertical = 6.dp)
-                    .clickable(actionStartActivity<MainActivity>()),
+                onClick = { actionStartActivity<MainActivity>() },
                 style = TextStyle(
                     fontSize = 12.sp,
                     color = GlanceTheme.colors.primary,
-                    textDecoration = TextDecoration.Underline
                 )
             )
         }
