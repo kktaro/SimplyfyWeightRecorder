@@ -3,6 +3,7 @@ package com.kktaro.simplifyweightrecorder.ui.weight
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kktaro.simplifyweightrecorder.data.healthconnect.HealthConnectAvailability
+import com.kktaro.simplifyweightrecorder.data.preferences.LastWeightRepository
 import com.kktaro.simplifyweightrecorder.domain.model.WeightInputResult
 import com.kktaro.simplifyweightrecorder.domain.model.WeightSaveError
 import com.kktaro.simplifyweightrecorder.domain.usecase.CheckHealthConnectAvailabilityUseCase
@@ -23,7 +24,8 @@ import kotlinx.coroutines.launch
 class WeightViewModel @Inject constructor(
     private val saveWeight: SaveWeightUseCase,
     private val validateInput: ValidateWeightInputUseCase,
-    private val checkAvailability: CheckHealthConnectAvailabilityUseCase
+    private val checkAvailability: CheckHealthConnectAvailabilityUseCase,
+    private val lastWeightRepository: LastWeightRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<WeightUiState>(WeightUiState.Initializing)
@@ -96,6 +98,7 @@ class WeightViewModel @Inject constructor(
             val result = saveWeight(valid.kg)
             result.fold(
                 onSuccess = {
+                    lastWeightRepository.setLastWeight(valid.kg)
                     _uiState.value = WeightUiState.Ready(
                         weightInput = "",
                         validation = WeightInputResult.Empty
