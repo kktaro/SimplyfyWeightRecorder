@@ -2,6 +2,7 @@ package com.kktaro.simplifyweightrecorder.ui.weight
 
 import app.cash.turbine.test
 import com.kktaro.simplifyweightrecorder.data.healthconnect.HealthConnectAvailability
+import com.kktaro.simplifyweightrecorder.data.preferences.LastWeightRepository
 import com.kktaro.simplifyweightrecorder.data.repository.WeightRepository
 import com.kktaro.simplifyweightrecorder.domain.model.WeightInputResult
 import com.kktaro.simplifyweightrecorder.domain.model.WeightSaveError
@@ -9,6 +10,8 @@ import com.kktaro.simplifyweightrecorder.domain.time.ClockProvider
 import com.kktaro.simplifyweightrecorder.domain.usecase.CheckHealthConnectAvailabilityUseCase
 import com.kktaro.simplifyweightrecorder.domain.usecase.SaveWeightUseCase
 import com.kktaro.simplifyweightrecorder.domain.usecase.ValidateWeightInputUseCase
+import com.kktaro.simplifyweightrecorder.widget.WidgetUpdater
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import java.time.Instant
@@ -52,7 +55,9 @@ class WeightViewModelTest {
         val viewModel = WeightViewModel(
             saveWeight = SaveWeightUseCase(NoopRepository(), fakeClock()),
             validateInput = ValidateWeightInputUseCase(),
-            checkAvailability = checkAvailability
+            checkAvailability = checkAvailability,
+            lastWeightRepository = mockk(relaxed = true),
+            widgetUpdater = mockk(relaxed = true)
         )
 
         val state = viewModel.uiState.value
@@ -68,7 +73,9 @@ class WeightViewModelTest {
         val viewModel = WeightViewModel(
             saveWeight = SaveWeightUseCase(NoopRepository(), fakeClock()),
             validateInput = ValidateWeightInputUseCase(),
-            checkAvailability = checkAvailability
+            checkAvailability = checkAvailability,
+            lastWeightRepository = mockk(relaxed = true),
+            widgetUpdater = mockk(relaxed = true)
         )
 
         val state = viewModel.uiState.value
@@ -152,6 +159,71 @@ class WeightViewModelTest {
     }
 
     @Test
+    fun `successful save persists last weight`() = runTest {
+        val lastWeightRepository = mockk<LastWeightRepository>(relaxed = true)
+        val viewModel = readyViewModel(
+            repo = NoopRepository(),
+            lastWeightRepository = lastWeightRepository
+        )
+        viewModel.onWeightChange("65.4")
+        viewModel.snackbarEvents.test {
+            viewModel.onPermissionResult(granted = true)
+            assertEquals(SnackbarEvent.SaveSuccess, awaitItem())
+        }
+        coVerify { lastWeightRepository.setLastWeight(65.4) }
+    }
+
+    @Test
+    fun `failed save does not persist last weight`() = runTest {
+        val repo = object : WeightRepository {
+            override suspend fun saveWeight(
+                weightKg: Double,
+                time: Instant,
+                offset: ZoneOffset
+            ): Result<Unit> = Result.failure(WeightSaveError.PermissionDenied)
+        }
+        val lastWeightRepository = mockk<LastWeightRepository>(relaxed = true)
+        val viewModel = readyViewModel(repo = repo, lastWeightRepository = lastWeightRepository)
+        viewModel.onWeightChange("70")
+        viewModel.snackbarEvents.test {
+            viewModel.onPermissionResult(granted = true)
+            awaitItem()
+        }
+        coVerify(exactly = 0) { lastWeightRepository.setLastWeight(any()) }
+    }
+
+    @Test
+    fun `successful save triggers widget update`() = runTest {
+        val widgetUpdater = mockk<WidgetUpdater>(relaxed = true)
+        val viewModel = readyViewModel(repo = NoopRepository(), widgetUpdater = widgetUpdater)
+        viewModel.onWeightChange("65.4")
+        viewModel.snackbarEvents.test {
+            viewModel.onPermissionResult(granted = true)
+            assertEquals(SnackbarEvent.SaveSuccess, awaitItem())
+        }
+        coVerify { widgetUpdater.updateAll() }
+    }
+
+    @Test
+    fun `failed save does not trigger widget update`() = runTest {
+        val repo = object : WeightRepository {
+            override suspend fun saveWeight(
+                weightKg: Double,
+                time: Instant,
+                offset: ZoneOffset
+            ): Result<Unit> = Result.failure(WeightSaveError.PermissionDenied)
+        }
+        val widgetUpdater = mockk<WidgetUpdater>(relaxed = true)
+        val viewModel = readyViewModel(repo = repo, widgetUpdater = widgetUpdater)
+        viewModel.onWeightChange("70")
+        viewModel.snackbarEvents.test {
+            viewModel.onPermissionResult(granted = true)
+            awaitItem()
+        }
+        coVerify(exactly = 0) { widgetUpdater.updateAll() }
+    }
+
+    @Test
     fun `save failure with PermissionDenied keeps input and emits PermissionDenied`() = runTest {
         val repo = object : WeightRepository {
             override suspend fun saveWeight(
@@ -171,13 +243,19 @@ class WeightViewModelTest {
         assertTrue(state.validation is WeightInputResult.Valid)
     }
 
-    private fun readyViewModel(repo: WeightRepository): WeightViewModel {
+    private fun readyViewModel(
+        repo: WeightRepository,
+        lastWeightRepository: LastWeightRepository = mockk(relaxed = true),
+        widgetUpdater: WidgetUpdater = mockk(relaxed = true)
+    ): WeightViewModel {
         val checkAvailability = mockk<CheckHealthConnectAvailabilityUseCase>()
         every { checkAvailability() } returns HealthConnectAvailability.Installed
         return WeightViewModel(
             saveWeight = SaveWeightUseCase(repo, fakeClock()),
             validateInput = ValidateWeightInputUseCase(),
-            checkAvailability = checkAvailability
+            checkAvailability = checkAvailability,
+            lastWeightRepository = lastWeightRepository,
+            widgetUpdater = widgetUpdater
         )
     }
 
