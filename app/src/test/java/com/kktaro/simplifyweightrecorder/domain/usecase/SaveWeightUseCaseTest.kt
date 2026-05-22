@@ -1,6 +1,7 @@
 package com.kktaro.simplifyweightrecorder.domain.usecase
 
 import com.kktaro.simplifyweightrecorder.data.repository.WeightRepository
+import com.kktaro.simplifyweightrecorder.domain.model.WeightRecordEntry
 import com.kktaro.simplifyweightrecorder.domain.time.ClockProvider
 import java.time.Instant
 import java.time.ZoneId
@@ -32,6 +33,11 @@ class SaveWeightUseCaseTest {
                 recorded.add(Triple(weightKg, time, offset))
                 return Result.success(Unit)
             }
+
+            override suspend fun readWeights(
+                startTime: Instant,
+                endTime: Instant
+            ): Result<List<WeightRecordEntry>> = Result.success(emptyList())
         }
         val useCase = SaveWeightUseCase(fakeRepo, fakeClock)
 
@@ -58,6 +64,11 @@ class SaveWeightUseCaseTest {
                 time: Instant,
                 offset: ZoneOffset
             ): Result<Unit> = Result.failure(expected)
+
+            override suspend fun readWeights(
+                startTime: Instant,
+                endTime: Instant
+            ): Result<List<WeightRecordEntry>> = Result.success(emptyList())
         }
         val useCase = SaveWeightUseCase(fakeRepo, fakeClock)
 
