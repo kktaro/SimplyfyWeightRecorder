@@ -1,0 +1,107 @@
+name: Weekly Claude Code skills update
+
+# 毎週月曜日 09:00 JST (00:00 UTC) に Android CLI 経由で
+# Claude Code 用の Android skills を再インストール/更新し、
+# 差分があれば .claude/skills/ を反映する Pull Request を作成する。
+# 手動実行 (workflow_dispatch) でも同じ処理を実行できる。
+
+on:
+  schedule:
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-skills:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Android CLI
+        # 参考: https://developer.android.com/tools/agents/android-cli/download
+        run: |
+          set -euo pipefail
+          sudo install -d -m 0755 /etc/apt/keyrings
+          curl -fsSL https://dl.google.com/linux/linux_signing_key.pub \
+            | sudo tee /etc/apt/keyrings/google.asc > /dev/null
+          echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/google.asc] http://dl.google.com/android/cli/latest/debian/ stable main" \
+            | sudo tee /etc/apt/sources.list.d/android-cli.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y android-cli
+          android --version
+
+      - name: Update Android CLI itself
+        run: android update
+
+      - name: Install / update Android skills for Claude Code
+        # Claude Code 用のスキル配置先 (.claude/skills/) を用意してから
+        # `android skills add --all --agent=claude` を実行する。
+        # 既にインストール済みのスキルは最新バージョンに更新される。
+        # 参考: https://developer.android.com/tools/agents/android-skills
+        run: |
+          set -euo pipefail
+          mkdir -p .claude/skills
+          android skills add --all --agent=claude
+
+      - name: Show installed skills
+        if: always()
+        run: android skills list --long || true
+
+      - name: Detect changes under .claude/skills
+        id: diff
+        run: |
+          set -euo pipefail
+          if [ -n "$(git status --porcelain -- .claude/skills)" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "summary<<EOF"
+              git status --short -- .claude/skills
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create Pull Request
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/weekly-skills-update
+          base: main
+          commit-message: "chore: update Claude Code skills via Android CLI"
+          title: "chore: update Claude Code skills (weekly)"
+          body: |
+            Android CLI 経由で `.claude/skills/` を最新化した自動 PR です。
+
+            ## 実行内容
+            - `android update` で Android CLI 自身を更新
+            - `android skills add --all --agent=claude` を実行
+            - `.claude/skills/` 配下に差分があったため本 PR を作成
+
+            ## 変更ファイル概要
+            ```
+            ${{ steps.diff.outputs.summary }}
+            ```
+
+            ## 内容の確認方法
+            - 各スキルの `SKILL.md` のメタデータ (`metadata.version`) を見て更新内容を確認してください
+            - 不要なスキルが含まれている場合は、マージ前に削除してください
+
+            ---
+            Triggered by: `${{ github.event_name }}`
+          add-paths: |
+            .claude/skills/**
+          delete-branch: true
+          labels: |
+            automated
+            skills-update
+
+      - name: Report no changes
+        if: steps.diff.outputs.changed == 'false'
+        run: echo "No skill updates detected under .claude/skills/. Skipping PR creation."
