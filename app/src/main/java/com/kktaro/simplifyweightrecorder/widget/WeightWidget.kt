@@ -75,6 +75,7 @@ private fun WeightWidgetContent(
         modifier = GlanceModifier
             .fillMaxSize()
             .background(GlanceTheme.colors.widgetBackground)
+            .clickable(actionStartActivity<MainActivity>())
             .padding(12.dp)
     ) {
         Text(
