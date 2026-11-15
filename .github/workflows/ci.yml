@@ -23,9 +23,13 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      # instrumented テストはエミュレータが必要なため、CI ではコンパイルのみ確認する
-      - name: Unit tests, lint, androidTest compile
-        run: ./gradlew testDebugUnitTest lintDebug assembleDebugAndroidTest
+      - name: Banned APIs
+        run: scripts/check-banned-apis.sh
+
+      # verifyRoborazziDebug はユニットテスト全体を走らせ、スクリーンショットを
+      # app/src/test/screenshots/ と比較する。instrumented テストはエミュレータが必要なため、コンパイルのみ確認する
+      - name: Unit + screenshot tests, lint, androidTest compile
+        run: ./gradlew verifyRoborazziDebug lintDebug assembleDebugAndroidTest
 
       - name: Upload reports
         if: failure()

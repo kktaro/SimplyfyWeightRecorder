@@ -23,20 +23,19 @@ adb shell am start -W -n com.kktaro.simplifyweightrecorder/.MainActivity
 
 ## 状態の観測
 
-- 画面: `adb exec-out screencap -p > <scratchpad>/x.png` を撮って Read で見る。座標は画像表示倍率から実解像度（1080x2424）に換算してから `adb shell input tap` する。
+作業ファイルは worktree 内の `build/`（ignore 済み）に置く。scratchpad のパスは `github` を含むため、ループや `&&` と組み合わせると worktree のサンドボックスに git 操作と誤判定されて拒否される。
+
+- 画面: `scripts/shot.sh <name>` → `build/shots/<name>.png`（長辺 800px に縮小済み）を Read で見る。原寸は `<name>.full.png`。
+- タップ: `scripts/tap.sh <表示テキスト>` で、テキストか content-desc が一致する要素の中心を叩く。画像から座標を換算しない。テキストの無い要素は `adb shell uiautomator dump` の `bounds` から求める。
 - キーボード表示: `adb shell dumpsys input_method | grep -m1 mInputShown`
 - 最前面 Activity: `adb shell dumpsys activity activities | grep -m1 topResumedActivity`
 - 入力: `adb shell input text 65.4`、戻る `adb shell input keyevent KEYCODE_BACK`、ホーム `KEYCODE_HOME`
 
 ## Health Connect の権限
 
-新しい AVD では、初回の登録時に Health Connect のオンボーディング（Get started）→ 権限画面（Weight トグル → Allow）が出る。画面フローを試さないなら、事前付与を試す（未検証。効かなければ画面で許可する）:
+画面フローを確かめないときは `scripts/grant-health-permissions.sh` で WRITE_WEIGHT / READ_WEIGHT / READ_HEALTH_DATA_HISTORY をまとめて付与する（`revoke` を付けると剥奪）。`connectedDebugAndroidTest` はアプリを入れ直して権限が消えるので、その後は付与し直す。
 
-```sh
-adb shell pm grant com.kktaro.simplifyweightrecorder android.permission.health.WRITE_WEIGHT
-```
-
-権限フロー自体を確認するときは `adb shell pm revoke ...` で戻す。
+権限フロー自体を確認するときは剥奪してから操作する。新しい AVD の初回は Health Connect のオンボーディング（Get started）→ 権限画面（トグル → Allow）が出る。
 
 ## 後片付け
 
