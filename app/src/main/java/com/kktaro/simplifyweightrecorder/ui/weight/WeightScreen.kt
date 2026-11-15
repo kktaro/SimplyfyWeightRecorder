@@ -22,9 +22,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
@@ -50,16 +52,19 @@ fun WeightScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
+    val autoFocusState = rememberWeightInputAutoFocusState()
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract()
     ) { grantedPermissions ->
+        autoFocusState.onPermissionResult()
         val writePermission = HealthPermission.getWritePermission(WeightRecord::class)
         viewModel.onPermissionResult(grantedPermissions.contains(writePermission))
     }
 
     LaunchedEffect(viewModel) {
         viewModel.permissionRequest.collect {
+            autoFocusState.onPermissionRequestLaunched()
             permissionLauncher.launch(
                 setOf(HealthPermission.getWritePermission(WeightRecord::class))
             )
@@ -84,6 +89,10 @@ fun WeightScreen(
         }
     }
 
+    LifecycleEventEffect(Lifecycle.Event.ON_START) {
+        autoFocusState.onStart()
+    }
+
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.refreshAvailability()
     }
@@ -98,6 +107,8 @@ fun WeightScreen(
     ) { innerPadding ->
         WeightRouter(
             uiState = uiState,
+            shouldFocusInput = autoFocusState.isFocusRequested,
+            onInputFocused = autoFocusState::onFocused,
             onWeightChange = viewModel::onWeightChange,
             onSubmit = {
                 focusManager.clearFocus()
@@ -119,8 +130,10 @@ fun WeightScreen(
 }
 
 @Composable
-private fun WeightRouter(
+internal fun WeightRouter(
     uiState: WeightUiState,
+    shouldFocusInput: Boolean,
+    onInputFocused: () -> Unit,
     onWeightChange: (String) -> Unit,
     onSubmit: () -> Unit,
     onOpenHealthConnect: () -> Unit,
@@ -133,13 +146,25 @@ private fun WeightRouter(
                 reason = uiState.reason,
                 onOpenHealthConnect = onOpenHealthConnect
             )
-            is WeightUiState.Ready -> WeightInputContent(
-                weightInput = uiState.weightInput,
-                validation = uiState.validation,
-                isSubmitting = false,
-                onWeightChange = onWeightChange,
-                onSubmit = onSubmit
-            )
+            is WeightUiState.Ready -> {
+                val focusRequester = remember { FocusRequester() }
+                val keyboardController = LocalSoftwareKeyboardController.current
+                LaunchedEffect(shouldFocusInput) {
+                    if (shouldFocusInput) {
+                        focusRequester.requestFocus()
+                        keyboardController?.show()
+                        onInputFocused()
+                    }
+                }
+                WeightInputContent(
+                    weightInput = uiState.weightInput,
+                    validation = uiState.validation,
+                    isSubmitting = false,
+                    onWeightChange = onWeightChange,
+                    onSubmit = onSubmit,
+                    focusRequester = focusRequester
+                )
+            }
             is WeightUiState.Submitting -> WeightInputContent(
                 weightInput = uiState.weightInput,
                 validation = WeightInputResult.Empty,

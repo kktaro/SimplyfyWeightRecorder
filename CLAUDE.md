@@ -47,6 +47,7 @@ The code is split into three layers under `com.kktaro.simplifyweightrecorder`:
   - `ui.weight.WeightScreen` — composable that wires the ViewModel, observes `uiState`, listens for `permissionRequest` / `snackbarEvents`, and re-runs `refreshAvailability()` on `ON_RESUME`. It owns the Health Connect permission `ActivityResultLauncher` (`HealthPermission.getWritePermission(WeightRecord::class)`).
   - `ui.weight.WeightInputContent` — input form (OutlinedTextField + submit button) with inline validation messages.
   - `ui.weight.WeightViewModel` — Hilt ViewModel that exposes `uiState: StateFlow<WeightUiState>`, `permissionRequest: SharedFlow<Unit>`, `snackbarEvents: SharedFlow<SnackbarEvent>`. Filters input to digits + a single `.` before validating.
+  - `ui.weight.WeightInputAutoFocusState` — UI-only state holder deciding when to auto-focus the input field (+ show IME): on screen creation and `ON_START`, except when returning from the permission flow. The request is consumed once `Ready` is shown, so `Submitting → Ready` does not re-focus. ViewModel is not involved.
   - `ui.weight.WeightUiState` — `Initializing | Unavailable | Ready | Submitting` plus `SnackbarEvent` sealed interface.
   - `ui.theme/` — `Theme.kt`, `Color.kt`, `Type.kt`; `SimplifyWeightRecorderTheme` is the root theme.
 - **widget/** — Jetpack Glance home-screen widget.
@@ -108,7 +109,7 @@ The code is split into three layers under `com.kktaro.simplifyweightrecorder`:
 - `app/src/main/res/values/strings.xml` — all user-facing strings (Japanese).
 - `app/src/main/res/xml/weight_widget_info.xml` — `appwidget-provider` metadata.
 - `app/src/main/res/layout/weight_widget_preview.xml` — widget picker preview layout.
-- `app/src/test/` — JVM unit tests (JUnit 4 + MockK + Turbine). Tests: `WeightViewModelTest`, `ValidateWeightInputUseCaseTest`, `SaveWeightUseCaseTest`, `ComputeWeightCandidatesUseCaseTest`, `WidgetErrorReasonMapperTest`.
+- `app/src/test/` — JVM unit tests (JUnit 4 + MockK + Turbine). Tests: `WeightViewModelTest`, `ValidateWeightInputUseCaseTest`, `SaveWeightUseCaseTest`, `ComputeWeightCandidatesUseCaseTest`, `WidgetErrorReasonMapperTest`, `WeightInputAutoFocusStateTest`.
 - `app/src/androidTest/` — instrumented tests; Compose UI tests use `androidx.compose.ui.test.junit4`.
 
 ## Conventions / gotchas
