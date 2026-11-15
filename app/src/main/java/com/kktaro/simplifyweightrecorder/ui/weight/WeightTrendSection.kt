@@ -2,6 +2,7 @@ package com.kktaro.simplifyweightrecorder.ui.weight
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,11 +29,15 @@ import com.kktaro.simplifyweightrecorder.domain.model.TrendPeriod
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.Zoom
 import com.patrykandpatrick.vico.compose.cartesian.axis.HorizontalAxis
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisGuidelineComponent
 import com.patrykandpatrick.vico.compose.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianLayerRangeProvider
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.compose.cartesian.data.lineSeries
+import com.patrykandpatrick.vico.compose.cartesian.layer.CartesianLayerPadding
+import com.patrykandpatrick.vico.compose.cartesian.layer.LineCartesianLayer
+import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLine
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.marker.CartesianMarkerController
 import com.patrykandpatrick.vico.compose.cartesian.marker.DefaultCartesianMarker
@@ -41,7 +46,9 @@ import com.patrykandpatrick.vico.compose.cartesian.marker.rememberDefaultCartesi
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
+import com.patrykandpatrick.vico.compose.common.Fill
 import com.patrykandpatrick.vico.compose.common.ProvideVicoTheme
+import com.patrykandpatrick.vico.compose.common.component.rememberShapeComponent
 import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
 import com.patrykandpatrick.vico.compose.common.data.ExtraStore
 import com.patrykandpatrick.vico.compose.m3.common.rememberM3VicoTheme
@@ -51,6 +58,7 @@ import kotlin.math.ceil
 import kotlin.math.floor
 
 private val chartHeight = 240.dp
+private const val MAX_DAYS_WITH_POINTS = 45
 
 @Composable
 fun WeightTrendSection(
@@ -170,10 +178,30 @@ private fun WeightTrendChart(dailyWeights: List<DailyWeight>, period: TrendPerio
     val itemPlacer = remember(labelSpacingDays) {
         HorizontalAxis.ItemPlacer.aligned(spacing = { labelSpacingDays })
     }
+    val lineColor = MaterialTheme.colorScheme.primary
+    val pointComponent = rememberShapeComponent(fill = Fill(lineColor), shape = CircleShape)
+    val pointProvider = remember(pointComponent) {
+        LineCartesianLayer.PointProvider.single(
+            LineCartesianLayer.Point(component = pointComponent, size = 6.dp)
+        )
+    }
     ProvideVicoTheme(rememberM3VicoTheme()) {
         CartesianChartHost(
             chart = rememberCartesianChart(
-                rememberLineCartesianLayer(rangeProvider = PaddedWeightRangeProvider),
+                rememberLineCartesianLayer(
+                    lineProvider = LineCartesianLayer.LineProvider.series(
+                        LineCartesianLayer.rememberLine(
+                            fill = remember(lineColor) {
+                                LineCartesianLayer.LineFill.single(Fill(lineColor))
+                            },
+                            // 記録が1日分だけでも見えるよう点を描く。日数が多いと線が潰れるので省く
+                            pointProvider = pointProvider.takeIf {
+                                dailyWeights.size <= MAX_DAYS_WITH_POINTS
+                            }
+                        )
+                    ),
+                    rangeProvider = PaddedWeightRangeProvider
+                ),
                 startAxis = VerticalAxis.rememberStart(
                     valueFormatter = remember { CartesianValueFormatter.decimal(decimalCount = 1) }
                 ),
@@ -187,8 +215,13 @@ private fun WeightTrendChart(dailyWeights: List<DailyWeight>, period: TrendPerio
                             color = MaterialTheme.colorScheme.onSurface
                         )
                     ),
-                    valueFormatter = markerFormatter
+                    valueFormatter = markerFormatter,
+                    guideline = rememberAxisGuidelineComponent()
                 ),
+                // 右端の日付ラベルが切れないよう余白を取る
+                layerPadding = remember {
+                    { CartesianLayerPadding(unscalableStart = 8.dp, unscalableEnd = 20.dp) }
+                },
                 getXStep = { _, _, _ -> 1.0 },
                 markerController = CartesianMarkerController.rememberToggleOnTap()
             ),
