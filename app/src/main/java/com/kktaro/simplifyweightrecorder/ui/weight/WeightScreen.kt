@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -46,9 +48,11 @@ private const val HEALTH_CONNECT_PACKAGE = "com.google.android.apps.healthdata"
 @Composable
 fun WeightScreen(
     modifier: Modifier = Modifier,
-    viewModel: WeightViewModel = hiltViewModel()
+    viewModel: WeightViewModel = hiltViewModel(),
+    trendViewModel: WeightTrendViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val trendUiState by trendViewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -60,6 +64,20 @@ fun WeightScreen(
         autoFocusState.onPermissionResult()
         val writePermission = HealthPermission.getWritePermission(WeightRecord::class)
         viewModel.onPermissionResult(grantedPermissions.contains(writePermission))
+    }
+
+    val readPermissionLauncher = rememberLauncherForActivityResult(
+        contract = PermissionController.createRequestPermissionResultContract()
+    ) {
+        autoFocusState.onPermissionResult()
+        trendViewModel.refresh()
+    }
+
+    LaunchedEffect(trendViewModel) {
+        trendViewModel.permissionRequest.collect { permissions ->
+            autoFocusState.onPermissionRequestLaunched()
+            readPermissionLauncher.launch(permissions)
+        }
     }
 
     LaunchedEffect(viewModel) {
@@ -85,6 +103,7 @@ fun WeightScreen(
                 is SnackbarEvent.UnknownError ->
                     event.message?.let { "$snackbarUnknownPrefix: $it" } ?: snackbarUnknownPrefix
             }
+            if (event == SnackbarEvent.SaveSuccess) trendViewModel.refresh()
             snackbarHostState.showSnackbar(message)
         }
     }
@@ -95,6 +114,7 @@ fun WeightScreen(
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.refreshAvailability()
+        trendViewModel.refresh()
     }
 
     Scaffold(
@@ -109,6 +129,14 @@ fun WeightScreen(
             uiState = uiState,
             shouldFocusInput = autoFocusState.isFocusRequested,
             onInputFocused = autoFocusState::onFocused,
+            trendSection = {
+                WeightTrendSection(
+                    uiState = trendUiState,
+                    onPeriodSelected = trendViewModel::onPeriodSelected,
+                    onRequestPermission = trendViewModel::onRequestPermission,
+                    onRetry = trendViewModel::retry
+                )
+            },
             onWeightChange = viewModel::onWeightChange,
             onSubmit = {
                 focusManager.clearFocus()
@@ -137,7 +165,8 @@ internal fun WeightRouter(
     onWeightChange: (String) -> Unit,
     onSubmit: () -> Unit,
     onOpenHealthConnect: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    trendSection: @Composable () -> Unit = {}
 ) {
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         when (uiState) {
@@ -146,7 +175,7 @@ internal fun WeightRouter(
                 reason = uiState.reason,
                 onOpenHealthConnect = onOpenHealthConnect
             )
-            is WeightUiState.Ready -> {
+            is WeightUiState.Ready -> InputAndTrendContent(trendSection) {
                 val focusRequester = remember { FocusRequester() }
                 val keyboardController = LocalSoftwareKeyboardController.current
                 LaunchedEffect(shouldFocusInput) {
@@ -165,14 +194,31 @@ internal fun WeightRouter(
                     focusRequester = focusRequester
                 )
             }
-            is WeightUiState.Submitting -> WeightInputContent(
-                weightInput = uiState.weightInput,
-                validation = WeightInputResult.Empty,
-                isSubmitting = true,
-                onWeightChange = {},
-                onSubmit = {}
-            )
+            is WeightUiState.Submitting -> InputAndTrendContent(trendSection) {
+                WeightInputContent(
+                    weightInput = uiState.weightInput,
+                    validation = WeightInputResult.Empty,
+                    isSubmitting = true,
+                    onWeightChange = {},
+                    onSubmit = {}
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun InputAndTrendContent(
+    trendSection: @Composable () -> Unit,
+    inputContent: @Composable () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
+        inputContent()
+        trendSection()
     }
 }
 

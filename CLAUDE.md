@@ -4,7 +4,7 @@
 
 Android app `Simplify Weight Recorder` (package `com.kktaro.simplifyweightrecorder`, single module `:app`, Compose + Material 3, Hilt). Writes a body-weight `WeightRecord` to **Health Connect**. Two entry points:
 
-- **App** — single screen `ui.weight.WeightScreen` + `WeightViewModel`, driven by `WeightUiState` (`Initializing | Unavailable | Ready | Submitting`).
+- **App** — single screen `ui.weight.WeightScreen` + `WeightViewModel`, driven by `WeightUiState` (`Initializing | Unavailable | Ready | Submitting`). Below the input form, `WeightTrendSection` + `WeightTrendViewModel` show the 体重推移 graph (Vico) of daily weights read back from Health Connect; vocabulary is in `GLOSSARY.md`.
 - **Widget** — Jetpack Glance (`widget/`): 11 candidate buttons (±0.5 kg around the last saved weight); a tap saves directly from the widget.
 
 Layers under `com.kktaro.simplifyweightrecorder`: `ui/` → `domain/` (use cases, models, `ClockProvider`) → `data/` (Health Connect, DataStore); bindings in `di/AppModule.kt`.
@@ -18,7 +18,7 @@ Layers under `com.kktaro.simplifyweightrecorder`: `ui/` → `domain/` (use cases
 
 Device/emulator verification (AVD launch, adb observation, Health Connect permission flow): `docs/agents/device-verification.md`.
 
-Dependencies go through `gradle/libs.versions.toml` as `libs.*`; `FAIL_ON_PROJECT_REPOS` breaks the build on module-level `repositories {}` blocks.
+Dependencies go through `gradle/libs.versions.toml` as `libs.*`; `FAIL_ON_PROJECT_REPOS` breaks the build on module-level `repositories {}` blocks. Vico is pinned to `3.2.x`: 3.3+ is built with Kotlin 2.4, which the project's Kotlin 2.2 compiler cannot read.
 
 ## Conventions / gotchas
 
@@ -31,6 +31,7 @@ Dependencies go through `gradle/libs.versions.toml` as `libs.*`; `FAIL_ON_PROJEC
 - Glance components cannot use Hilt's constructor injection. Resolve dependencies through `WeightWidgetEntryPoint` (extend it if you need more bindings) and `EntryPointAccessors.fromApplication(...)`.
 - Permission acquisition for Health Connect cannot be triggered from a widget. In error states the widget surfaces an "アプリを開く" link that launches `MainActivity` so the existing in-app permission flow takes over.
 - The manifest's `ViewMainActivity` `activity-alias` (`ACTION_VIEW_PERMISSION_USAGE` / `HEALTH_PERMISSIONS`) is required by the Health Connect permission rationale flow — keep it even though nothing in code references it.
+- The trend graph never requests `READ_WEIGHT` automatically — only from its 許可する button, via a launcher separate from the write one. Both permission launches must call `autoFocusState.onPermissionRequestLaunched()` / `onPermissionResult()` so returning from Health Connect doesn't re-pop the keyboard.
 - androidTest has no Hilt test setup; to UI-test screen logic, extract a ViewModel-free composable (e.g. `WeightRouter`) and test that.
 
 ## Agent skills

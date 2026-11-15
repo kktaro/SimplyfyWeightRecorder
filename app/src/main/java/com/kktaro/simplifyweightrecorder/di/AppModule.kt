@@ -2,7 +2,9 @@ package com.kktaro.simplifyweightrecorder.di
 
 import com.kktaro.simplifyweightrecorder.data.preferences.DataStoreLastWeightRepository
 import com.kktaro.simplifyweightrecorder.data.preferences.LastWeightRepository
+import com.kktaro.simplifyweightrecorder.data.repository.HealthConnectWeightMeasurementRepository
 import com.kktaro.simplifyweightrecorder.data.repository.HealthConnectWeightRepository
+import com.kktaro.simplifyweightrecorder.data.repository.WeightMeasurementRepository
 import com.kktaro.simplifyweightrecorder.data.repository.WeightRepository
 import com.kktaro.simplifyweightrecorder.domain.time.ClockProvider
 import com.kktaro.simplifyweightrecorder.domain.time.SystemClockProvider
@@ -20,6 +22,12 @@ abstract class AppModule {
     @Binds
     @Singleton
     abstract fun bindWeightRepository(impl: HealthConnectWeightRepository): WeightRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindWeightMeasurementRepository(
+        impl: HealthConnectWeightMeasurementRepository
+    ): WeightMeasurementRepository
 
     @Binds
     @Singleton

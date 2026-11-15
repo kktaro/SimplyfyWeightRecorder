@@ -59,6 +59,7 @@ dependencies {
     implementation(libs.androidx.glance.preview)
     debugImplementation(libs.androidx.glance.appwidget.preview)
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.vico.compose.m3)
     implementation(libs.hilt.android)
     implementation(libs.kotlinx.coroutines.android)
     ksp(libs.hilt.compiler)

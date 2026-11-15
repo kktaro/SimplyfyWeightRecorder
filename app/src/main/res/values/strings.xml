@@ -23,4 +23,16 @@
     <string name="widget_error_open_app">アプリを開く</string>
     <string name="widget_error_health_connect_unavailable">Health Connect が利用できません</string>
     <string name="widget_error_unknown">記録に失敗しました</string>
+    <string name="trend_title">体重推移</string>
+    <string name="trend_period_week">1週間</string>
+    <string name="trend_period_month">1ヶ月</string>
+    <string name="trend_period_three_months">3ヶ月</string>
+    <string name="trend_period_year">1年</string>
+    <string name="trend_permission_required">グラフを表示するには体重の読み取り許可が必要です</string>
+    <string name="trend_permission_button">許可する</string>
+    <string name="trend_empty">この期間の記録はありません</string>
+    <string name="trend_error">読み込みに失敗しました</string>
+    <string name="trend_retry_button">再試行</string>
+    <string name="trend_date_format" translatable="false">M/d</string>
+    <string name="trend_marker_format">%1$s %2$.1fkg</string>
 </resources>
