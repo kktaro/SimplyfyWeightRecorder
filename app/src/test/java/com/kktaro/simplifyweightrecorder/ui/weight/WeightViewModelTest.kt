@@ -5,6 +5,7 @@ import com.kktaro.simplifyweightrecorder.data.healthconnect.HealthConnectAvailab
 import com.kktaro.simplifyweightrecorder.data.preferences.LastWeightRepository
 import com.kktaro.simplifyweightrecorder.data.repository.WeightRepository
 import com.kktaro.simplifyweightrecorder.domain.model.WeightInputResult
+import com.kktaro.simplifyweightrecorder.domain.model.WeightRecordEntry
 import com.kktaro.simplifyweightrecorder.domain.model.WeightSaveError
 import com.kktaro.simplifyweightrecorder.domain.time.ClockProvider
 import com.kktaro.simplifyweightrecorder.domain.usecase.CheckHealthConnectAvailabilityUseCase
@@ -131,6 +132,11 @@ class WeightViewModelTest {
                 recorded.add(weightKg)
                 return Result.success(Unit)
             }
+
+            override suspend fun readWeights(
+                startTime: Instant,
+                endTime: Instant
+            ): Result<List<WeightRecordEntry>> = Result.success(emptyList())
         }
         val viewModel = readyViewModel(repo = repo)
         viewModel.onWeightChange("70")
@@ -181,6 +187,11 @@ class WeightViewModelTest {
                 time: Instant,
                 offset: ZoneOffset
             ): Result<Unit> = Result.failure(WeightSaveError.PermissionDenied)
+
+            override suspend fun readWeights(
+                startTime: Instant,
+                endTime: Instant
+            ): Result<List<WeightRecordEntry>> = Result.success(emptyList())
         }
         val lastWeightRepository = mockk<LastWeightRepository>(relaxed = true)
         val viewModel = readyViewModel(repo = repo, lastWeightRepository = lastWeightRepository)
@@ -212,6 +223,11 @@ class WeightViewModelTest {
                 time: Instant,
                 offset: ZoneOffset
             ): Result<Unit> = Result.failure(WeightSaveError.PermissionDenied)
+
+            override suspend fun readWeights(
+                startTime: Instant,
+                endTime: Instant
+            ): Result<List<WeightRecordEntry>> = Result.success(emptyList())
         }
         val widgetUpdater = mockk<WidgetUpdater>(relaxed = true)
         val viewModel = readyViewModel(repo = repo, widgetUpdater = widgetUpdater)
@@ -231,6 +247,11 @@ class WeightViewModelTest {
                 time: Instant,
                 offset: ZoneOffset
             ): Result<Unit> = Result.failure(WeightSaveError.PermissionDenied)
+
+            override suspend fun readWeights(
+                startTime: Instant,
+                endTime: Instant
+            ): Result<List<WeightRecordEntry>> = Result.success(emptyList())
         }
         val viewModel = readyViewModel(repo = repo)
         viewModel.onWeightChange("70")
@@ -271,5 +292,10 @@ class WeightViewModelTest {
             callCount++
             return Result.success(Unit)
         }
+
+        override suspend fun readWeights(
+            startTime: Instant,
+            endTime: Instant
+        ): Result<List<WeightRecordEntry>> = Result.success(emptyList())
     }
 }
