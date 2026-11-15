@@ -24,9 +24,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
@@ -54,10 +56,12 @@ fun WeightScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
+    val autoFocusState = rememberWeightInputAutoFocusState()
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract()
     ) { grantedPermissions ->
+        autoFocusState.onPermissionResult()
         val writePermission = HealthPermission.getWritePermission(WeightRecord::class)
         viewModel.onPermissionResult(grantedPermissions.contains(writePermission))
     }
@@ -65,17 +69,20 @@ fun WeightScreen(
     val readPermissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract()
     ) {
+        autoFocusState.onPermissionResult()
         trendViewModel.refresh()
     }
 
     LaunchedEffect(trendViewModel) {
         trendViewModel.permissionRequest.collect { permissions ->
+            autoFocusState.onPermissionRequestLaunched()
             readPermissionLauncher.launch(permissions)
         }
     }
 
     LaunchedEffect(viewModel) {
         viewModel.permissionRequest.collect {
+            autoFocusState.onPermissionRequestLaunched()
             permissionLauncher.launch(
                 setOf(HealthPermission.getWritePermission(WeightRecord::class))
             )
@@ -101,6 +108,10 @@ fun WeightScreen(
         }
     }
 
+    LifecycleEventEffect(Lifecycle.Event.ON_START) {
+        autoFocusState.onStart()
+    }
+
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.refreshAvailability()
         trendViewModel.refresh()
@@ -116,6 +127,8 @@ fun WeightScreen(
     ) { innerPadding ->
         WeightRouter(
             uiState = uiState,
+            shouldFocusInput = autoFocusState.isFocusRequested,
+            onInputFocused = autoFocusState::onFocused,
             trendSection = {
                 WeightTrendSection(
                     uiState = trendUiState,
@@ -145,13 +158,15 @@ fun WeightScreen(
 }
 
 @Composable
-private fun WeightRouter(
+internal fun WeightRouter(
     uiState: WeightUiState,
-    trendSection: @Composable () -> Unit,
+    shouldFocusInput: Boolean,
+    onInputFocused: () -> Unit,
     onWeightChange: (String) -> Unit,
     onSubmit: () -> Unit,
     onOpenHealthConnect: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    trendSection: @Composable () -> Unit = {}
 ) {
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         when (uiState) {
@@ -161,12 +176,22 @@ private fun WeightRouter(
                 onOpenHealthConnect = onOpenHealthConnect
             )
             is WeightUiState.Ready -> InputAndTrendContent(trendSection) {
+                val focusRequester = remember { FocusRequester() }
+                val keyboardController = LocalSoftwareKeyboardController.current
+                LaunchedEffect(shouldFocusInput) {
+                    if (shouldFocusInput) {
+                        focusRequester.requestFocus()
+                        keyboardController?.show()
+                        onInputFocused()
+                    }
+                }
                 WeightInputContent(
                     weightInput = uiState.weightInput,
                     validation = uiState.validation,
                     isSubmitting = false,
                     onWeightChange = onWeightChange,
-                    onSubmit = onSubmit
+                    onSubmit = onSubmit,
+                    focusRequester = focusRequester
                 )
             }
             is WeightUiState.Submitting -> InputAndTrendContent(trendSection) {

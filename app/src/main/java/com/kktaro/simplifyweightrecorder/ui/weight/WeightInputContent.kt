@@ -11,14 +11,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
 import com.kktaro.simplifyweightrecorder.R
 import com.kktaro.simplifyweightrecorder.domain.model.WeightInputResult
+
+internal const val WEIGHT_INPUT_TEST_TAG = "weight_input"
 
 @Composable
 fun WeightInputContent(
@@ -27,7 +33,8 @@ fun WeightInputContent(
     isSubmitting: Boolean,
     onWeightChange: (String) -> Unit,
     onSubmit: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    focusRequester: FocusRequester = remember { FocusRequester() }
 ) {
     val hasError = validation !is WeightInputResult.Valid && validation !is WeightInputResult.Empty
     val errorMessageRes = when (validation) {
@@ -60,7 +67,10 @@ fun WeightInputContent(
             supportingText = errorMessageRes?.let {
                 { Text(text = stringResource(id = it)) }
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focusRequester)
+                .testTag(WEIGHT_INPUT_TEST_TAG)
         )
         Button(
             onClick = onSubmit,
