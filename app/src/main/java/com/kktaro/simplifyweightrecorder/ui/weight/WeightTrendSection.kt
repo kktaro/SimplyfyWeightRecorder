@@ -17,7 +17,6 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,10 +30,10 @@ import com.patrykandpatrick.vico.compose.cartesian.Zoom
 import com.patrykandpatrick.vico.compose.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisGuidelineComponent
 import com.patrykandpatrick.vico.compose.cartesian.axis.VerticalAxis
-import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModel
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianLayerRangeProvider
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianValueFormatter
-import com.patrykandpatrick.vico.compose.cartesian.data.lineSeries
+import com.patrykandpatrick.vico.compose.cartesian.data.LineCartesianLayerModel
 import com.patrykandpatrick.vico.compose.cartesian.layer.CartesianLayerPadding
 import com.patrykandpatrick.vico.compose.cartesian.layer.LineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLine
@@ -147,16 +146,16 @@ private fun TrendMessage(
 
 @Composable
 private fun WeightTrendChart(dailyWeights: List<DailyWeight>, period: TrendPeriod) {
-    val modelProducer = remember { CartesianChartModelProducer() }
-    LaunchedEffect(dailyWeights) {
-        modelProducer.runTransaction {
-            lineSeries {
+    // 期間を切り替えるたびに Loading を挟んで作り直すので、非同期の ModelProducer は使わず同期で組み立てる
+    val model = remember(dailyWeights) {
+        CartesianChartModel(
+            LineCartesianLayerModel.build {
                 series(
                     x = dailyWeights.map { it.date.toEpochDay() },
                     y = dailyWeights.map { it.kg }
                 )
             }
-        }
+        )
     }
     val datePattern = stringResource(id = R.string.trend_date_format)
     val markerTemplate = stringResource(id = R.string.trend_marker_format)
@@ -225,7 +224,7 @@ private fun WeightTrendChart(dailyWeights: List<DailyWeight>, period: TrendPerio
                 getXStep = { _, _, _ -> 1.0 },
                 markerController = CartesianMarkerController.rememberToggleOnTap()
             ),
-            modelProducer = modelProducer,
+            model = model,
             scrollState = rememberVicoScrollState(scrollEnabled = false),
             zoomState = rememberVicoZoomState(
                 zoomEnabled = false,
