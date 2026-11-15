@@ -121,3 +121,17 @@ The code is split into three layers under `com.kktaro.simplifyweightrecorder`:
 - Whenever a new save path is added, call `LastWeightRepository.setLastWeight(kg)` on success so the widget's center cell stays in sync with the latest entry.
 - Glance components cannot use Hilt's constructor injection. Resolve dependencies through `WeightWidgetEntryPoint` (extend it if you need more bindings) and `EntryPointAccessors.fromApplication(...)`.
 - Permission acquisition for Health Connect cannot be triggered from a widget. In error states the widget surfaces an "アプリを開く" link that launches `MainActivity` so the existing in-app permission flow takes over.
+
+## Agent skills
+
+### Issue tracker
+
+issue は GitHub Issues（kktaro/SimplyfyWeightRecorder）で `gh` CLI を使って管理する。詳細は `docs/agents/issue-tracker.md`。
+
+### Triage labels
+
+デフォルトの5ロール（`needs-triage`、`needs-info`、`ready-for-agent`、`ready-for-human`、`wontfix`）をそのまま使う。詳細は `docs/agents/triage-labels.md`。
+
+### Domain docs
+
+single-context 構成：リポジトリ直下に `GLOSSARY.md` と `docs/adr/` を1つずつ置く。詳細は `docs/agents/domain.md`。
