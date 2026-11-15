@@ -2,12 +2,13 @@ package com.kktaro.simplifyweightrecorder.ui.weight
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.kktaro.simplifyweightrecorder.data.repository.WeightHistoryRepository
+import com.kktaro.simplifyweightrecorder.data.repository.WeightMeasurementRepository
 import com.kktaro.simplifyweightrecorder.domain.model.TrendPeriod
 import com.kktaro.simplifyweightrecorder.domain.model.WeightReadError
 import com.kktaro.simplifyweightrecorder.domain.usecase.GetWeightTrendUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,7 +22,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class WeightTrendViewModel @Inject constructor(
     private val getTrend: GetWeightTrendUseCase,
-    private val historyRepository: WeightHistoryRepository
+    private val measurementRepository: WeightMeasurementRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(WeightTrendUiState())
@@ -36,7 +37,7 @@ class WeightTrendViewModel @Inject constructor(
 
     fun onRequestPermission() {
         viewModelScope.launch {
-            _permissionRequest.tryEmit(historyRepository.readPermissionsToRequest())
+            _permissionRequest.tryEmit(measurementRepository.readPermissionsToRequest())
         }
     }
 
@@ -46,15 +47,23 @@ class WeightTrendViewModel @Inject constructor(
         refresh()
     }
 
+    private var loadJob: Job? = null
+
+    fun retry() {
+        _uiState.update { it.copy(content = TrendContent.Loading) }
+        refresh()
+    }
+
     fun refresh() {
-        viewModelScope.launch {
-            if (!historyRepository.hasReadPermission()) {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
+            if (!measurementRepository.hasReadPermission()) {
                 _uiState.update { it.copy(content = TrendContent.PermissionRequired) }
                 return@launch
             }
             val content = getTrend(_uiState.value.period).fold(
-                onSuccess = { points ->
-                    if (points.isEmpty()) TrendContent.Empty else TrendContent.Loaded(points)
+                onSuccess = { dailyWeights ->
+                    if (dailyWeights.isEmpty()) TrendContent.Empty else TrendContent.Loaded(dailyWeights)
                 },
                 onFailure = { error ->
                     if (error is WeightReadError.PermissionDenied) {

@@ -12,6 +12,6 @@ sealed interface TrendContent {
     data object Loading : TrendContent
     data object PermissionRequired : TrendContent
     data object Empty : TrendContent
-    data class Loaded(val points: List<DailyWeight>) : TrendContent
+    data class Loaded(val dailyWeights: List<DailyWeight>) : TrendContent
     data object Error : TrendContent
 }

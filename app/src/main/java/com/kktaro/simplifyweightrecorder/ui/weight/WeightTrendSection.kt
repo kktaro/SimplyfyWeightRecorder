@@ -34,6 +34,7 @@ import com.patrykandpatrick.vico.compose.cartesian.data.CartesianLayerRangeProvi
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.compose.cartesian.data.lineSeries
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
+import com.patrykandpatrick.vico.compose.cartesian.marker.CartesianMarkerController
 import com.patrykandpatrick.vico.compose.cartesian.marker.DefaultCartesianMarker
 import com.patrykandpatrick.vico.compose.cartesian.marker.LineCartesianLayerMarkerTarget
 import com.patrykandpatrick.vico.compose.cartesian.marker.rememberDefaultCartesianMarker
@@ -91,7 +92,7 @@ fun WeightTrendSection(
                     onAction = onRetry
                 )
                 is TrendContent.Loaded -> WeightTrendChart(
-                    points = content.points,
+                    dailyWeights = content.dailyWeights,
                     period = uiState.period
                 )
             }
@@ -136,32 +137,33 @@ private fun TrendMessage(
     }
 }
 
-private val axisDateFormatter = DateTimeFormatter.ofPattern("M/d")
-
 @Composable
-private fun WeightTrendChart(points: List<DailyWeight>, period: TrendPeriod) {
+private fun WeightTrendChart(dailyWeights: List<DailyWeight>, period: TrendPeriod) {
     val modelProducer = remember { CartesianChartModelProducer() }
-    LaunchedEffect(points) {
+    LaunchedEffect(dailyWeights) {
         modelProducer.runTransaction {
             lineSeries {
                 series(
-                    x = points.map { it.date.toEpochDay() },
-                    y = points.map { it.kg }
+                    x = dailyWeights.map { it.date.toEpochDay() },
+                    y = dailyWeights.map { it.kg }
                 )
             }
         }
     }
-    val dateFormatter = remember {
+    val datePattern = stringResource(id = R.string.trend_date_format)
+    val markerTemplate = stringResource(id = R.string.trend_marker_format)
+    val axisDateFormatter = remember(datePattern) { DateTimeFormatter.ofPattern(datePattern) }
+    val dateFormatter = remember(axisDateFormatter) {
         CartesianValueFormatter { _, value, _ ->
             LocalDate.ofEpochDay(value.toLong()).format(axisDateFormatter)
         }
     }
-    val markerFormatter = remember {
+    val markerFormatter = remember(axisDateFormatter, markerTemplate) {
         DefaultCartesianMarker.ValueFormatter { _, targets ->
             val target = targets.firstOrNull() ?: return@ValueFormatter ""
             val kg = (target as? LineCartesianLayerMarkerTarget)?.points?.firstOrNull()?.entry?.y
             val date = LocalDate.ofEpochDay(target.x.toLong()).format(axisDateFormatter)
-            if (kg == null) date else "%s  %.1f kg".format(date, kg)
+            if (kg == null) date else markerTemplate.format(date, kg)
         }
     }
     val labelSpacingDays = period.axisLabelSpacingDays
@@ -187,7 +189,8 @@ private fun WeightTrendChart(points: List<DailyWeight>, period: TrendPeriod) {
                     ),
                     valueFormatter = markerFormatter
                 ),
-                getXStep = { _, _, _ -> 1.0 }
+                getXStep = { _, _, _ -> 1.0 },
+                markerController = CartesianMarkerController.rememberToggleOnTap()
             ),
             modelProducer = modelProducer,
             scrollState = rememberVicoScrollState(scrollEnabled = false),

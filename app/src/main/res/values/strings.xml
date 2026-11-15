@@ -33,4 +33,6 @@
     <string name="trend_empty">この期間の記録はありません</string>
     <string name="trend_error">読み込みに失敗しました</string>
     <string name="trend_retry_button">再試行</string>
+    <string name="trend_date_format" translatable="false">M/d</string>
+    <string name="trend_marker_format">%1$s %2$.1fkg</string>
 </resources>

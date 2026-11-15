@@ -11,9 +11,9 @@ import com.kktaro.simplifyweightrecorder.domain.model.WeightReadError
 import java.time.Instant
 import javax.inject.Inject
 
-class HealthConnectWeightHistoryRepository @Inject constructor(
+class HealthConnectWeightMeasurementRepository @Inject constructor(
     private val provider: HealthConnectClientProvider
-) : WeightHistoryRepository {
+) : WeightMeasurementRepository {
 
     override suspend fun readWeights(
         start: Instant,

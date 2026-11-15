@@ -3,7 +3,7 @@ package com.kktaro.simplifyweightrecorder.data.repository
 import com.kktaro.simplifyweightrecorder.domain.model.WeightMeasurement
 import java.time.Instant
 
-interface WeightHistoryRepository {
+interface WeightMeasurementRepository {
     /** [start] 以上 [end] 未満の体重記録を読む。失敗時は [com.kktaro.simplifyweightrecorder.domain.model.WeightReadError]。 */
     suspend fun readWeights(start: Instant, end: Instant): Result<List<WeightMeasurement>>
 

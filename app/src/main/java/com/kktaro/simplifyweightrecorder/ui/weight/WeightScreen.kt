@@ -121,7 +121,7 @@ fun WeightScreen(
                     uiState = trendUiState,
                     onPeriodSelected = trendViewModel::onPeriodSelected,
                     onRequestPermission = trendViewModel::onRequestPermission,
-                    onRetry = trendViewModel::refresh
+                    onRetry = trendViewModel::retry
                 )
             },
             onWeightChange = viewModel::onWeightChange,

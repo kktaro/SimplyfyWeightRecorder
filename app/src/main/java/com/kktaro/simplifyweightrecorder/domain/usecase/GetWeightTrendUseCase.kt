@@ -1,13 +1,13 @@
 package com.kktaro.simplifyweightrecorder.domain.usecase
 
-import com.kktaro.simplifyweightrecorder.data.repository.WeightHistoryRepository
+import com.kktaro.simplifyweightrecorder.data.repository.WeightMeasurementRepository
 import com.kktaro.simplifyweightrecorder.domain.model.DailyWeight
 import com.kktaro.simplifyweightrecorder.domain.model.TrendPeriod
 import com.kktaro.simplifyweightrecorder.domain.time.ClockProvider
 import javax.inject.Inject
 
 class GetWeightTrendUseCase @Inject constructor(
-    private val repository: WeightHistoryRepository,
+    private val repository: WeightMeasurementRepository,
     private val clock: ClockProvider
 ) {
     suspend operator fun invoke(period: TrendPeriod): Result<List<DailyWeight>> {

@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Android app `Simplify Weight Recorder` (package `com.kktaro.simplifyweightrecorder`). Single-module Gradle project (`:app`) built with Jetpack Compose + Material 3. The app captures a body-weight value from the user and writes it to **Health Connect** as a `WeightRecord` (timestamped in `Asia/Tokyo`). It is the sole entry point — there is no list/history screen.
+Android app `Simplify Weight Recorder` (package `com.kktaro.simplifyweightrecorder`). Single-module Gradle project (`:app`) built with Jetpack Compose + Material 3. The app captures a body-weight value from the user and writes it to **Health Connect** as a `WeightRecord` (timestamped in `Asia/Tokyo`). The same screen also shows a **weight trend graph** (体重推移) of daily weights read back from Health Connect. There is no list/edit screen.
 
-The UI is structured as a single screen (`WeightScreen`) backed by a Hilt-injected `WeightViewModel`, with a `WeightUiState` sealed interface that drives four distinct states: `Initializing`, `Unavailable` (Health Connect missing or needs update), `Ready` (input form), and `Submitting` (in-flight save).
+The UI is structured as a single screen (`WeightScreen`) backed by two Hilt-injected ViewModels: `WeightViewModel` (input/save, `WeightUiState`: `Initializing | Unavailable | Ready | Submitting`) and `WeightTrendViewModel` (trend graph, `WeightTrendUiState` = selected `TrendPeriod` + `TrendContent`: `Loading | PermissionRequired | Empty | Loaded | Error`). Domain vocabulary (体重記録 / 日次体重 / 体重推移 / 表示期間) is defined in `GLOSSARY.md`.
 
 In addition, the app provides a **home-screen widget** (Jetpack Glance) that lays out 11 weight candidate buttons around the last saved value (±0.5 kg in 0.1 kg steps). Tapping a button writes a `WeightRecord` to Health Connect directly from the widget without opening the app.
 
@@ -20,6 +20,7 @@ In addition, the app provides a **home-screen widget** (Jetpack Glance) that lay
 - Health Connect: `androidx.health.connect:connect-client:1.1.0`.
 - Widget: Jetpack Glance `1.1.1` (`glance-appwidget` + `glance-material3`).
 - Storage: `androidx.datastore:datastore-preferences:1.1.7` (for persisting the last saved weight).
+- Charts: Vico `compose-m3` `3.2.3` (3.3+ is built with Kotlin 2.4 and is not readable by the project's Kotlin 2.2 compiler).
 - Async/state: Kotlin Coroutines `1.9.0`, Lifecycle ViewModel/Runtime Compose `2.8.7`, Hilt Navigation Compose `1.2.0`.
 - Test: JUnit 4, MockK `1.13.12`, Turbine `1.1.0`, `kotlinx-coroutines-test`.
 
@@ -48,6 +49,8 @@ The code is split into three layers under `com.kktaro.simplifyweightrecorder`:
   - `ui.weight.WeightInputContent` — input form (OutlinedTextField + submit button) with inline validation messages.
   - `ui.weight.WeightViewModel` — Hilt ViewModel that exposes `uiState: StateFlow<WeightUiState>`, `permissionRequest: SharedFlow<Unit>`, `snackbarEvents: SharedFlow<SnackbarEvent>`. Filters input to digits + a single `.` before validating.
   - `ui.weight.WeightUiState` — `Initializing | Unavailable | Ready | Submitting` plus `SnackbarEvent` sealed interface.
+  - `ui.weight.WeightTrendViewModel` — Hilt ViewModel for the trend graph. `refresh()` cancels any in-flight load; `retry()` shows `Loading` then refreshes; `onPeriodSelected` reloads; `onRequestPermission` emits the permission set on `permissionRequest: SharedFlow<Set<String>>`. `WeightScreen` calls `refresh()` on `ON_RESUME`, after the read-permission result, and on `SnackbarEvent.SaveSuccess`.
+  - `ui.weight.WeightTrendSection` — period `SegmentedButton` + Vico line chart (fixed ~240dp, no scroll/zoom, toggle-on-tap marker) and the permission/empty/error messages. Shown below `WeightInputContent` inside a vertically scrolling column.
   - `ui.theme/` — `Theme.kt`, `Color.kt`, `Type.kt`; `SimplifyWeightRecorderTheme` is the root theme.
 - **widget/** — Jetpack Glance home-screen widget.
   - `widget.WeightWidget` — `GlanceAppWidget` that renders the title, current status text, and the 11-cell candidate grid. Uses `PreferencesGlanceStateDefinition` for transient UI state.
@@ -60,17 +63,22 @@ The code is split into three layers under `com.kktaro.simplifyweightrecorder`:
   - `domain.usecase.ValidateWeightInputUseCase` — accepts `^\d+(\.\d+)?$`, max 1 decimal, `0 < kg <= 500` (`MAX_WEIGHT_KG = 500.0`).
   - `domain.usecase.SaveWeightUseCase` — converts kg + `ClockProvider.nowInTokyo()` into Instant/ZoneOffset and delegates to `WeightRepository`.
   - `domain.usecase.CheckHealthConnectAvailabilityUseCase` — thin wrapper over `HealthConnectClientProvider.getStatus()`.
+  - `domain.usecase.GetWeightTrendUseCase` — reads `WeightMeasurement`s from the start of `TrendPeriod.startDate(today)` (Tokyo) until now and collapses them into one `DailyWeight` per Tokyo date (the last measurement of the day), sorted by date.
   - `domain.usecase.ComputeWeightCandidatesUseCase` — produces 11 `WeightCandidate`s around `baseKg` (or `DEFAULT_BASELINE_KG = 60.0` if null) at 0.1 kg steps using `BigDecimal` to avoid float noise. Values outside `0 < kg ≤ MAX_WEIGHT_KG` are dropped.
   - `domain.model.WeightInputResult` — `Valid(kg) | Empty | NotANumber | OutOfRange | TooManyDecimals`.
   - `domain.model.WeightSaveError` — `PermissionDenied | HealthConnectUnavailable | Unknown(cause)`. Subclasses `Throwable` so they can flow through `Result.failure`.
   - `domain.model.WeightCandidate` — `(kg: Double, isBaseline: Boolean)`.
+  - `domain.model.TrendPeriod` — `WEEK | MONTH | THREE_MONTHS | YEAR` with `startDate(today)`.
+  - `domain.model.WeightMeasurement` — `(time: Instant, kg)`; `domain.model.DailyWeight` — `(date: LocalDate, kg)`.
+  - `domain.model.WeightReadError` — `PermissionDenied | HealthConnectUnavailable | Unknown(cause)`, the read-side counterpart of `WeightSaveError`.
   - `domain.time.ClockProvider` / `SystemClockProvider` — provides `ZonedDateTime` in `Asia/Tokyo` (fixed timezone, not the device default).
 - **data/**
   - `data.healthconnect.HealthConnectClientProvider` — maps `HealthConnectClient.getSdkStatus()` to `HealthConnectAvailability` and lazily returns a client when installed.
   - `data.healthconnect.HealthConnectAvailability` — `Unknown | Installed | NotInstalled | UpdateRequired`.
   - `data.repository.WeightRepository` (interface) / `HealthConnectWeightRepository` — writes a `WeightRecord` with `Metadata.manualEntry()`. Translates `SecurityException` → `WeightSaveError.PermissionDenied`, any other throwable → `WeightSaveError.Unknown`.
+  - `data.repository.WeightMeasurementRepository` (interface) / `HealthConnectWeightMeasurementRepository` — reads `WeightRecord`s from all data origins (paged), checks `READ_WEIGHT`, and returns the permission set to request (adds `PERMISSION_READ_HEALTH_DATA_HISTORY` when `FEATURE_READ_HEALTH_DATA_HISTORY` is available). Translates `SecurityException` → `WeightReadError.PermissionDenied`.
   - `data.preferences.LastWeightRepository` (interface) / `DataStoreLastWeightRepository` — persists the most recently saved weight as a `Float` in DataStore Preferences (`last_weight_preferences`). `WeightViewModel` and `WeightSelectionActionCallback` both call `setLastWeight` on save success so the widget centers on the latest value.
-- **di/AppModule.kt** — `@Module @InstallIn(SingletonComponent::class)` binding `WeightRepository ← HealthConnectWeightRepository`, `ClockProvider ← SystemClockProvider`, and `LastWeightRepository ← DataStoreLastWeightRepository`.
+- **di/AppModule.kt** — `@Module @InstallIn(SingletonComponent::class)` binding `WeightRepository ← HealthConnectWeightRepository`, `WeightMeasurementRepository ← HealthConnectWeightMeasurementRepository`, `ClockProvider ← SystemClockProvider`, and `LastWeightRepository ← DataStoreLastWeightRepository`.
 
 ### Save flow (app)
 
@@ -90,7 +98,7 @@ The code is split into three layers under `com.kktaro.simplifyweightrecorder`:
 
 ### Manifest essentials
 
-- `uses-permission android:name="android.permission.health.WRITE_WEIGHT"`.
+- `uses-permission` for `android.permission.health.WRITE_WEIGHT`, `READ_WEIGHT`, and `READ_HEALTH_DATA_HISTORY`.
 - `<queries><package android:name="com.google.android.apps.healthdata"/></queries>` so the app can resolve the Health Connect package on Android 11+.
 - `activity-alias` `ViewMainActivity` exposes `ACTION_VIEW_PERMISSION_USAGE` / `category.HEALTH_PERMISSIONS` (required by Health Connect rationale flow on Android 13 and below).
 - `<receiver android:name=".widget.WeightWidgetReceiver">` with `APPWIDGET_UPDATE` intent-filter and `@xml/weight_widget_info` meta-data so the home-screen widget is discoverable.
@@ -99,7 +107,7 @@ The code is split into three layers under `com.kktaro.simplifyweightrecorder`:
 
 - `app/src/main/java/com/kktaro/simplifyweightrecorder/`
   - `MainActivity.kt`, `SimplifyWeightRecorderApp.kt`
-  - `ui/weight/` — `WeightScreen.kt`, `WeightInputContent.kt`, `WeightViewModel.kt`, `WeightUiState.kt`
+  - `ui/weight/` — `WeightScreen.kt`, `WeightInputContent.kt`, `WeightViewModel.kt`, `WeightUiState.kt`, `WeightTrendSection.kt`, `WeightTrendViewModel.kt`, `WeightTrendUiState.kt`
   - `ui/theme/` — `Theme.kt`, `Color.kt`, `Type.kt`
   - `widget/` — `WeightWidget.kt`, `WeightWidgetReceiver.kt`, `WeightWidgetEntryPoint.kt`, `WeightWidgetUiState.kt`, `WeightSelectionActionCallback.kt`, `WidgetErrorReason.kt`
   - `domain/usecase/`, `domain/model/`, `domain/time/`
@@ -108,7 +116,7 @@ The code is split into three layers under `com.kktaro.simplifyweightrecorder`:
 - `app/src/main/res/values/strings.xml` — all user-facing strings (Japanese).
 - `app/src/main/res/xml/weight_widget_info.xml` — `appwidget-provider` metadata.
 - `app/src/main/res/layout/weight_widget_preview.xml` — widget picker preview layout.
-- `app/src/test/` — JVM unit tests (JUnit 4 + MockK + Turbine). Tests: `WeightViewModelTest`, `ValidateWeightInputUseCaseTest`, `SaveWeightUseCaseTest`, `ComputeWeightCandidatesUseCaseTest`, `WidgetErrorReasonMapperTest`.
+- `app/src/test/` — JVM unit tests (JUnit 4 + MockK + Turbine). Tests: `WeightViewModelTest`, `WeightTrendViewModelTest`, `ValidateWeightInputUseCaseTest`, `SaveWeightUseCaseTest`, `GetWeightTrendUseCaseTest`, `ComputeWeightCandidatesUseCaseTest`, `WidgetErrorReasonMapperTest`.
 - `app/src/androidTest/` — instrumented tests; Compose UI tests use `androidx.compose.ui.test.junit4`.
 
 ## Conventions / gotchas
@@ -120,6 +128,7 @@ The code is split into three layers under `com.kktaro.simplifyweightrecorder`:
 - When adding a new flow that touches Health Connect, route status checks through `HealthConnectClientProvider` so the `Installed/NotInstalled/UpdateRequired/Unknown` mapping stays in one place.
 - Whenever a new save path is added, call `LastWeightRepository.setLastWeight(kg)` on success so the widget's center cell stays in sync with the latest entry.
 - Glance components cannot use Hilt's constructor injection. Resolve dependencies through `WeightWidgetEntryPoint` (extend it if you need more bindings) and `EntryPointAccessors.fromApplication(...)`.
+- The trend graph never requests read permission automatically; it is requested only from the graph's 許可する button (separate launcher from the write-permission one).
 - Permission acquisition for Health Connect cannot be triggered from a widget. In error states the widget surfaces an "アプリを開く" link that launches `MainActivity` so the existing in-app permission flow takes over.
 
 ## Agent skills

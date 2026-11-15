@@ -1,6 +1,6 @@
 package com.kktaro.simplifyweightrecorder.domain.usecase
 
-import com.kktaro.simplifyweightrecorder.data.repository.WeightHistoryRepository
+import com.kktaro.simplifyweightrecorder.data.repository.WeightMeasurementRepository
 import com.kktaro.simplifyweightrecorder.domain.model.DailyWeight
 import com.kktaro.simplifyweightrecorder.domain.model.TrendPeriod
 import com.kktaro.simplifyweightrecorder.domain.model.WeightMeasurement
@@ -22,9 +22,9 @@ class GetWeightTrendUseCaseTest {
         override fun nowInTokyo(): ZonedDateTime = now
     }
 
-    private class FakeHistoryRepository(
+    private class FakeMeasurementRepository(
         private val result: Result<List<WeightMeasurement>> = Result.success(emptyList())
-    ) : WeightHistoryRepository {
+    ) : WeightMeasurementRepository {
         val requestedRanges = mutableListOf<Pair<Instant, Instant>>()
 
         override suspend fun readWeights(start: Instant, end: Instant): Result<List<WeightMeasurement>> {
@@ -42,7 +42,7 @@ class GetWeightTrendUseCaseTest {
 
     @Test
     fun `month period reads from start of the day one month ago plus one day until now`() = runTest {
-        val repo = FakeHistoryRepository()
+        val repo = FakeMeasurementRepository()
 
         GetWeightTrendUseCase(repo, clock)(TrendPeriod.MONTH)
 
@@ -60,7 +60,7 @@ class GetWeightTrendUseCaseTest {
             TrendPeriod.YEAR to tokyoInstant(2025, 5, 17, 0)
         )
         expectedStarts.forEach { (period, expectedStart) ->
-            val repo = FakeHistoryRepository()
+            val repo = FakeMeasurementRepository()
 
             GetWeightTrendUseCase(repo, clock)(period)
 
@@ -71,7 +71,7 @@ class GetWeightTrendUseCaseTest {
     @Test
     fun `propagates repository failure`() = runTest {
         val error = WeightReadError.PermissionDenied
-        val repo = FakeHistoryRepository(Result.failure(error))
+        val repo = FakeMeasurementRepository(Result.failure(error))
 
         val result = GetWeightTrendUseCase(repo, clock)(TrendPeriod.MONTH)
 
@@ -80,7 +80,7 @@ class GetWeightTrendUseCaseTest {
 
     @Test
     fun `uses the last measurement of each Tokyo day sorted by date`() = runTest {
-        val repo = FakeHistoryRepository(
+        val repo = FakeMeasurementRepository(
             Result.success(
                 listOf(
                     // 5/15 23:30 JST (= 5/15 14:30 UTC) と 5/16 00:30 JST (= 5/15 15:30 UTC) は別の日
