@@ -12,22 +12,19 @@ Layers under `com.kktaro.simplifyweightrecorder`: `ui/` → `domain/` (use cases
 ## Commands
 
 ```sh
-./gradlew testDebugUnitTest lintDebug assembleDebugAndroidTest   # what CI runs (.github/workflows/ci.yml)
-./gradlew connectedDebugAndroidTest                              # instrumented tests; needs device/emulator
+scripts/check-banned-apis.sh && ./gradlew verifyRoborazziDebug lintDebug assembleDebugAndroidTest   # what CI runs
+./gradlew recordRoborazziDebug          # re-record screenshot tests (app/src/test/screenshots/) after a visual change
+./gradlew connectedDebugAndroidTest     # instrumented tests; needs device/emulator
 ```
 
-Device/emulator verification (AVD launch, adb observation, Health Connect permission flow): `docs/agents/device-verification.md`.
+- Device/emulator verification (AVD, `scripts/shot.sh` / `scripts/tap.sh`, Health Connect permissions): `docs/agents/device-verification.md`.
+- Screenshots in a PR body: `docs/agents/pr-screenshots.md`.
+- Review rules: `CODING_STANDARDS.md`.
 
-Dependencies go through `gradle/libs.versions.toml` as `libs.*`; `FAIL_ON_PROJECT_REPOS` breaks the build on module-level `repositories {}` blocks. Vico is pinned to `3.2.x`: 3.3+ is built with Kotlin 2.4, which the project's Kotlin 2.2 compiler cannot read.
+Dependencies go through `gradle/libs.versions.toml` as `libs.*`; `FAIL_ON_PROJECT_REPOS` breaks the build on module-level `repositories {}` blocks. Vico is pinned to `3.2.x`: 3.3+ is built with Kotlin 2.4, which the project's Kotlin 2.2 compiler cannot read. Feed charts a `CartesianChartModel` built synchronously, not `CartesianChartModelProducer`: the producer's async first draw races Robolectric screenshot tests.
 
 ## Conventions / gotchas
 
-- Time is always **Asia/Tokyo** via `ClockProvider`. Do not call `Instant.now()` directly in production code — inject `ClockProvider` so tests can fake it.
-- `WeightSaveError` extends `Throwable`; surface it via `Result.failure(...)` rather than throwing across coroutine boundaries by hand.
-- `HealthConnectAvailability.Unknown` keeps the UI in `Initializing` — treat it as a transient state, not a failure.
-- Input filtering (digits + single `.`) lives in `WeightViewModel.filterInput`; validation rules (range, decimal count) live in `ValidateWeightInputUseCase`. Keep the two responsibilities separate.
-- When adding a new flow that touches Health Connect, route status checks through `HealthConnectClientProvider` so the `Installed/NotInstalled/UpdateRequired/Unknown` mapping stays in one place.
-- Whenever a new save path is added, call `LastWeightRepository.setLastWeight(kg)` on success so the widget's center cell stays in sync with the latest entry.
 - Glance components cannot use Hilt's constructor injection. Resolve dependencies through `WeightWidgetEntryPoint` (extend it if you need more bindings) and `EntryPointAccessors.fromApplication(...)`.
 - Permission acquisition for Health Connect cannot be triggered from a widget. In error states the widget surfaces an "アプリを開く" link that launches `MainActivity` so the existing in-app permission flow takes over.
 - The manifest's `ViewMainActivity` `activity-alias` (`ACTION_VIEW_PERMISSION_USAGE` / `HEALTH_PERMISSIONS`) is required by the Health Connect permission rationale flow — keep it even though nothing in code references it.
